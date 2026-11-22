@@ -166,6 +166,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const {
     state,
     effectiveReducedMotion,
+    showWelcomeIntro,
+    sessionAuthMode,
     welcomeExitedCount,
     openDemoLogin,
     setCommandPaletteOpen,
@@ -200,23 +202,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  // Coordinated shell reveal immediately after Welcome Hero exits
+  // Coordinated shell reveal immediately after Welcome Hero exits (without shifting sticky layout)
   useGSAP(
     () => {
-      if (welcomeExitedCount === 0 || effectiveReducedMotion) return;
+      if (effectiveReducedMotion) {
+        gsap.set(".shell-coord-group", { clearProps: "opacity,willChange" });
+        return;
+      }
+      if (showWelcomeIntro || sessionAuthMode === "demo_login") {
+        gsap.set(".shell-coord-group", { opacity: 0 });
+        return;
+      }
+      if (welcomeExitedCount === 0) return;
+
       const tl = gsap.timeline({
         onComplete: () => {
-          gsap.set(".shell-coord-group", { clearProps: "transform,opacity,willChange" });
+          gsap.set(".shell-coord-group", { clearProps: "opacity,willChange" });
         },
       });
       tl.fromTo(
         ".shell-coord-group",
-        { y: -6, opacity: 0, willChange: "transform, opacity" },
-        { y: 0, opacity: 1, duration: 0.34, stagger: 0.05, ease: "power2.out" },
+        { opacity: 0, willChange: "opacity" },
+        { opacity: 1, duration: 0.3, stagger: 0.05, ease: "power2.out" },
         0
       );
     },
-    { scope: shellRef, dependencies: [welcomeExitedCount, effectiveReducedMotion], revertOnUpdate: true }
+    {
+      scope: shellRef,
+      dependencies: [welcomeExitedCount, showWelcomeIntro, sessionAuthMode, effectiveReducedMotion],
+      revertOnUpdate: true,
+    }
   );
 
   // Scroll-triggered footer reveal

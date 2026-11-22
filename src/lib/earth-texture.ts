@@ -63,10 +63,20 @@ function drawGeometry(
   }
 }
 
+let cachedTextureCanvas: HTMLCanvasElement | null = null;
+
 export function createEarthTextureCanvas(
-  width = 2048,
-  height = 1024
+  width = 1024,
+  height = 512
 ): HTMLCanvasElement {
+  if (
+    cachedTextureCanvas &&
+    cachedTextureCanvas.width === width &&
+    cachedTextureCanvas.height === height
+  ) {
+    return cachedTextureCanvas;
+  }
+
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -121,5 +131,6 @@ export function createEarthTextureCanvas(
     }
   }
 
+  cachedTextureCanvas = canvas;
   return canvas;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useOrbit } from "@/context/OrbitContext";
@@ -24,53 +24,83 @@ export function WelcomeEntrance() {
 
   const rootRef = useRef<HTMLDivElement>(null);
   const skipBtnRef = useRef<HTMLButtonElement>(null);
+  const isExitingRef = useRef(false);
   const [heroAssetsReady, setHeroAssetsReady] = useState(false);
+  const [heroEarthFrozen, setHeroEarthFrozen] = useState(false);
   const [loginName, setLoginName] = useState(state.preferences.name);
 
   useEffect(() => {
     setLoginName(state.preferences.name);
   }, [state.preferences.name]);
 
-  // Mark hero assets ready immediately after first paint (zero artificial delay, no blank frame)
+  // Mark hero assets ready immediately after first paint (zero artificial delay)
   useEffect(() => {
     if (!showWelcomeIntro) {
       setHeroAssetsReady(false);
+      setHeroEarthFrozen(false);
+      isExitingRef.current = false;
       return;
     }
     const raf = window.requestAnimationFrame(() => setHeroAssetsReady(true));
     return () => window.cancelAnimationFrame(raf);
   }, [showWelcomeIntro]);
 
-  // Keyboard shortcuts during Welcome Hero (Escape or Enter skips cleanly)
+  // Smooth manual exit (Skip / Escape) without abrupt pop
+  const handleSmoothExit = useCallback(() => {
+    if (isExitingRef.current) return;
+    isExitingRef.current = true;
+    setHeroEarthFrozen(true);
+
+    if (effectiveReducedMotion || !rootRef.current) {
+      dismissWelcomeIntro();
+      return;
+    }
+
+    gsap.killTweensOf(rootRef.current);
+    gsap.to(rootRef.current, {
+      opacity: 0,
+      y: -10,
+      duration: 0.28,
+      ease: "power2.inOut",
+      force3D: true,
+      onComplete: () => {
+        dismissWelcomeIntro();
+      },
+    });
+  }, [effectiveReducedMotion, dismissWelcomeIntro]);
+
+  // Keyboard shortcut during Welcome Hero
   useEffect(() => {
     if (!showWelcomeIntro) return;
     skipBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        dismissWelcomeIntro();
+        handleSmoothExit();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showWelcomeIntro, dismissWelcomeIntro]);
+  }, [showWelcomeIntro, handleSmoothExit]);
 
-  // Coordinated Post-Login Hero Timeline (~2.5s total)
+  // Coordinated Post-Login Hero Timeline (~2.45s total)
   useGSAP(
     () => {
       if (!showWelcomeIntro || !heroAssetsReady || !rootRef.current) return;
 
       if (effectiveReducedMotion) {
-        // Reduced motion: show full composition cleanly, then gently transition after 700ms
         const timer = window.setTimeout(() => {
           dismissWelcomeIntro();
-        }, 700);
+        }, 650);
         return () => window.clearTimeout(timer);
       }
 
       const tl = gsap.timeline({
         onComplete: () => {
-          dismissWelcomeIntro();
+          if (!isExitingRef.current) {
+            isExitingRef.current = true;
+            dismissWelcomeIntro();
+          }
         },
       });
 
@@ -82,8 +112,9 @@ export function WelcomeEntrance() {
           color: "#FA3600",
           scale: 1,
           opacity: 1,
-          duration: 0.45,
+          duration: 0.42,
           ease: "power2.out",
+          force3D: true,
         },
         0
       );
@@ -95,11 +126,12 @@ export function WelcomeEntrance() {
         {
           scaleX: 1,
           opacity: 1,
-          duration: 0.48,
-          stagger: 0.06,
+          duration: 0.45,
+          stagger: 0.05,
           ease: "power2.out",
+          force3D: true,
         },
-        0.06
+        0.05
       );
       tl.fromTo(
         ".welcome-rule-v",
@@ -107,45 +139,57 @@ export function WelcomeEntrance() {
         {
           scaleY: 1,
           opacity: 1,
-          duration: 0.48,
-          stagger: 0.06,
+          duration: 0.45,
+          stagger: 0.05,
           ease: "power2.out",
+          force3D: true,
         },
-        0.08
+        0.07
       );
 
       // 3. Earth composition settles into place
       tl.fromTo(
         ".welcome-earth-stage",
-        { scale: 0.94, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.65, ease: "power3.out" },
-        0.25
+        { scale: 0.95, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.58, ease: "power3.out", force3D: true },
+        0.22
       );
 
       // 4. Time-aware greeting & personal line reveal upward through clipped masks
       tl.fromTo(
         ".welcome-hero-line",
-        { yPercent: 112, opacity: 0 },
+        { yPercent: 110, opacity: 0 },
         {
           yPercent: 0,
           opacity: 1,
-          duration: 0.46,
-          stagger: 0.09,
+          duration: 0.44,
+          stagger: 0.08,
           ease: "power3.out",
+          force3D: true,
         },
-        0.55
+        0.52
       );
 
-      // 5. Smooth transition out into the workspace (~2.45s)
+      // Freeze Earth loop right before exit fade so GPU composites smoothly at 60fps
+      tl.call(
+        () => {
+          setHeroEarthFrozen(true);
+        },
+        undefined,
+        2.02
+      );
+
+      // 5. Smooth GPU-only fade + slight lift out into the dashboard
       tl.to(
         rootRef.current,
         {
           opacity: 0,
-          y: -8,
-          duration: 0.36,
+          y: -10,
+          duration: 0.38,
           ease: "power2.inOut",
+          force3D: true,
         },
-        2.15
+        2.06
       );
     },
     {
@@ -170,9 +214,9 @@ export function WelcomeEntrance() {
         role="dialog"
         aria-modal="true"
         aria-label="Demo Workspace Entry"
-        className="fixed inset-0 z-[85] orbit-paper-surface flex items-center justify-center p-4 sm:p-6"
+        className="fixed inset-0 z-[85] bg-[#F5F5ED] flex items-center justify-center p-4 sm:p-6"
       >
-        <div className="w-full max-w-[480px] border border-[#282828] orbit-paper-surface">
+        <div className="orbit-modal-panel w-full max-w-[480px] border border-[#282828] bg-[#F5F5ED]">
           <div className="p-6 border-b border-[#B3B3AF] flex items-center justify-between">
             <OrbitWordmark />
             <span className="px-2 py-0.5 border border-[#FA3600] text-[#C82A00] font-mono text-[10px] uppercase tracking-[0.06em]">
@@ -228,7 +272,8 @@ export function WelcomeEntrance() {
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to Orbit workspace"
-      className="fixed inset-0 z-[80] orbit-paper-surface flex flex-col justify-between p-4 sm:p-8 overflow-hidden"
+      style={{ willChange: "transform, opacity" }}
+      className="fixed inset-0 z-[80] bg-[#F5F5ED] flex flex-col justify-between p-4 sm:p-8 overflow-hidden"
     >
       {/* Architectural construction lines */}
       <div
@@ -255,7 +300,7 @@ export function WelcomeEntrance() {
         <button
           ref={skipBtnRef}
           type="button"
-          onClick={dismissWelcomeIntro}
+          onClick={handleSmoothExit}
           className="px-3 py-1.5 border border-[#282828] bg-[#F5F5ED] font-mono text-[11px] uppercase tracking-[0.06em] text-[#282828] hover:bg-[#282828] hover:text-[#F5F5ED] transition-colors cursor-pointer"
         >
           Skip / Continue →
@@ -287,7 +332,7 @@ export function WelcomeEntrance() {
         </div>
 
         <div className="welcome-earth-stage lg:col-span-5 h-[240px] sm:h-[310px] w-full">
-          <EarthCenterpiece reducedMotion={effectiveReducedMotion} />
+          <EarthCenterpiece reducedMotion={effectiveReducedMotion || heroEarthFrozen} />
         </div>
       </div>
 

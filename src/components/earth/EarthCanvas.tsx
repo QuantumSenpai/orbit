@@ -85,10 +85,10 @@ function EarthSceneContent({
   const satHaloRef = useRef<THREE.Mesh>(null);
 
   const texture = useMemo(() => {
-    const canvas = createEarthTextureCanvas(2048, 1024);
+    const canvas = createEarthTextureCanvas(1024, 512);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
+    tex.anisotropy = 2;
     tex.needsUpdate = true;
     return tex;
   }, []);
@@ -147,7 +147,7 @@ function EarthSceneContent({
     <group ref={earthGroupRef}>
       {/* Earth sphere with custom day/night terminator & atmosphere rim */}
       <mesh ref={globeRef} rotation={[0.18, -2.05, 0]}>
-        <sphereGeometry args={[1.05, 64, 64]} />
+        <sphereGeometry args={[1.05, 48, 48]} />
         <shaderMaterial
           vertexShader={EARTH_VERT}
           fragmentShader={EARTH_FRAG}
@@ -157,7 +157,7 @@ function EarthSceneContent({
 
       {/* Subtle outer atmosphere limb ring */}
       <mesh scale={[1.032, 1.032, 1.032]}>
-        <sphereGeometry args={[1.05, 48, 48]} />
+        <sphereGeometry args={[1.05, 32, 32]} />
         <meshBasicMaterial
           color="#92ADC7"
           transparent
@@ -169,7 +169,7 @@ function EarthSceneContent({
       {/* Primary tilted orbital ring + orange satellite */}
       <group rotation={[0.42, 0.2, -0.34]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[1.44, 0.005, 12, 128]} />
+          <torusGeometry args={[1.44, 0.005, 8, 96]} />
           <meshBasicMaterial color="#7C7C78" transparent opacity={0.65} />
         </mesh>
         <mesh ref={satRef}>
@@ -177,7 +177,7 @@ function EarthSceneContent({
           <meshBasicMaterial color="#FA3600" />
         </mesh>
         <mesh ref={satHaloRef}>
-          <ringGeometry args={[0.068, 0.082, 24]} />
+          <ringGeometry args={[0.068, 0.082, 20]} />
           <meshBasicMaterial
             color="#FA3600"
             transparent
@@ -190,7 +190,7 @@ function EarthSceneContent({
       {/* Secondary orbital geometry ring */}
       <group rotation={[-0.36, -0.4, 0.28]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[1.32, 0.0038, 10, 128]} />
+          <torusGeometry args={[1.32, 0.0038, 8, 96]} />
           <meshBasicMaterial color="#B3B3AF" transparent opacity={0.5} />
         </mesh>
       </group>

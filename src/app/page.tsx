@@ -57,6 +57,8 @@ export default function TodayPage() {
   const {
     state,
     effectiveReducedMotion,
+    showWelcomeIntro,
+    sessionAuthMode,
     toggleTask,
     addTask,
     deleteTask,
@@ -66,9 +68,23 @@ export default function TodayPage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [taskError, setTaskError] = useState("");
   const [forceStaticEarth, setForceStaticEarth] = useState(false);
+  const [dashboardWebglReady, setDashboardWebglReady] = useState(false);
   const [greeting, setGreeting] = useState(
     `Welcome, ${state.preferences.name.trim() || "there"}.`
   );
+
+  // Defer mounting dashboard 3D WebGL canvas until welcome hero exits & entrance settles (~400ms)
+  // so only ONE WebGL context exists at a time and the hero->dashboard transition runs at steady 60fps.
+  useEffect(() => {
+    if (showWelcomeIntro || sessionAuthMode === "demo_login") {
+      setDashboardWebglReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDashboardWebglReady(true);
+    }, 380);
+    return () => window.clearTimeout(timer);
+  }, [showWelcomeIntro, sessionAuthMode]);
 
   useEffect(() => {
     setGreeting(
@@ -218,7 +234,7 @@ export default function TodayPage() {
           <div className="h-[260px] sm:h-[300px] lg:h-[330px] w-full">
             <EarthCenterpiece
               reducedMotion={effectiveReducedMotion}
-              forceStatic={forceStaticEarth}
+              forceStatic={forceStaticEarth || !dashboardWebglReady}
             />
           </div>
           <div className="px-4 py-2.5 border-t border-[#B3B3AF] flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.06em] text-[#5C5C59]">
