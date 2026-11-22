@@ -1,0 +1,491 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-paper: #f5f5ed;
+  --color-paper-deep: #ecebe2;
+  --color-ink: #282828;
+  --color-ink-secondary: #414140;
+  --color-ink-muted: #5c5c59;
+  --color-rule: #b3b3af;
+  --color-accent: #fa3600;
+  --color-accent-dark: #c82a00;
+}
+
+:root {
+  --orbit-bg: #f5f5ed;
+  --orbit-bg-deep: #ecebe2;
+  --orbit-ink: #282828;
+  --orbit-ink-secondary: #414140;
+  --orbit-ink-muted: #5c5c59;
+  --orbit-rule: #b3b3af;
+  --orbit-accent: #fa3600;
+  --orbit-accent-text: #c82a00;
+  --orbit-white: #ffffff;
+
+  /* Exact observed reference easings & durations */
+  --ease-btn-text: cubic-bezier(0.625, 0.05, 0, 1);
+  --ease-header-arrow: cubic-bezier(0.23, 1, 0.32, 1);
+  --dur-btn-text: 480ms;
+  --dur-btn-compact: 300ms;
+  --dur-header-arrow: 500ms;
+  --dur-form-focus: 400ms;
+
+  /* 12-frame coarse dither / pixel wipe sprite sheet (1200% x 100%) */
+  --orbit-dither-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'%3E%3Cg fill='%23000'%3E%3Crect x='11' y='2' width='1' height='1'/%3E%3Crect x='15' y='6' width='1' height='1'/%3E%3Crect x='18' y='3' width='1' height='1'/%3E%3Crect x='20' y='1' width='2' height='1'/%3E%3Crect x='23' y='5' width='1' height='2'/%3E%3Crect x='26' y='2' width='2' height='1'/%3E%3Crect x='28' y='7' width='1' height='2'/%3E%3Crect x='30' y='0' width='2' height='2'/%3E%3Crect x='33' y='4' width='2' height='2'/%3E%3Crect x='36' y='1' width='2' height='2'/%3E%3Crect x='38' y='6' width='2' height='2'/%3E%3Crect x='31' y='7' width='2' height='2'/%3E%3Crect x='40' y='0' width='4' height='3'/%3E%3Crect x='45' y='3' width='3' height='3'/%3E%3Crect x='42' y='6' width='4' height='3'/%3E%3Crect x='47' y='0' width='3' height='5'/%3E%3Crect x='40' y='4' width='2' height='4'/%3E%3Crect x='50' y='0' width='5' height='4'/%3E%3Crect x='56' y='1' width='4' height='4'/%3E%3Crect x='51' y='5' width='4' height='5'/%3E%3Crect x='55' y='4' width='5' height='4'/%3E%3Crect x='60' y='0' width='7' height='6'/%3E%3Crect x='62' y='6' width='8' height='4'/%3E%3Crect x='67' y='1' width='3' height='5'/%3E%3Crect x='70' y='0' width='8' height='8'/%3E%3Crect x='78' y='2' width='2' height='8'/%3E%3Crect x='71' y='8' width='6' height='2'/%3E%3Crect x='80' y='0' width='9' height='9'/%3E%3Crect x='89' y='1' width='1' height='9'/%3E%3Crect x='82' y='9' width='7' height='1'/%3E%3Crect x='90' y='0' width='10' height='9'/%3E%3Crect x='91' y='9' width='9' height='1'/%3E%3Crect x='100' y='0' width='10' height='10'/%3E%3Crect x='110' y='0' width='10' height='10'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--orbit-rule);
+}
+
+html,
+body {
+  background-color: var(--orbit-bg);
+  color: var(--orbit-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* Subtle paper grain overlay matching reference warm off-white surface */
+.orbit-paper-surface {
+  background-color: var(--orbit-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.038'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+::selection {
+  background-color: var(--orbit-accent);
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--orbit-accent);
+  outline-offset: 2px;
+}
+
+/* Display typography scale */
+.orbit-display {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  line-height: 0.98;
+}
+
+.orbit-mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+/* Clipped line mask helper for entrance & page title text */
+.orbit-line-mask {
+  overflow: hidden;
+  display: block;
+}
+
+.orbit-line-mask > span,
+.orbit-line-mask > .orbit-line-inner {
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Shared Heron-inspired Dither Mask + Vertical Text Roll Interaction System
+   -------------------------------------------------------------------------- */
+@keyframes orbit-dither-in {
+  0% {
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-dither-out {
+  0% {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+    opacity: 0;
+  }
+}
+
+@layer components {
+  .orbit-dither-control {
+    position: relative;
+    overflow: hidden;
+    transition:
+      color var(--dur-btn-text) var(--ease-btn-text),
+      border-color 280ms ease;
+  }
+
+  .orbit-btn-fill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    border: 1px solid var(--orbit-rule);
+    background-color: transparent;
+    color: var(--orbit-ink);
+    white-space: nowrap;
+    transition:
+      color var(--dur-btn-text) var(--ease-btn-text),
+      border-color 280ms ease;
+  }
+}
+
+.orbit-btn-fill[data-variant="accent"] {
+  background-color: var(--orbit-accent);
+  border-color: var(--orbit-accent);
+  color: #ffffff;
+}
+
+.orbit-dither-bg,
+.orbit-btn-fill-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--orbit-ink);
+  opacity: 0;
+}
+
+.orbit-dither-control[data-bg-tone="accent"] .orbit-dither-bg {
+  background-color: var(--orbit-accent);
+}
+
+.orbit-dither-control[data-bg-tone="paper-deep"] .orbit-dither-bg {
+  background-color: var(--orbit-bg-deep);
+}
+
+@supports ((-webkit-mask-image: url("")) or (mask-image: url(""))) {
+  .orbit-dither-bg,
+  .orbit-btn-fill-bg {
+    -webkit-mask-image: var(--orbit-dither-mask);
+    mask-image: var(--orbit-dither-mask);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 1200% 100%;
+    mask-size: 1200% 100%;
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+    -webkit-mask-mode: alpha;
+    mask-mode: alpha;
+  }
+}
+
+.orbit-roll-label,
+.orbit-btn-fill-label {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  overflow: hidden;
+}
+
+.orbit-roll-label > span,
+.orbit-btn-fill-label > span {
+  grid-area: 1 / 1;
+  transition: transform var(--dur-btn-text) var(--ease-btn-text);
+}
+
+.orbit-roll-label > span:last-child,
+.orbit-btn-fill-label > span:last-child {
+  transform: translateY(110%);
+}
+
+.orbit-dither-control[data-compact="true"] .orbit-roll-label > span {
+  transition-duration: var(--dur-btn-compact);
+}
+
+.orbit-roll-icon,
+.orbit-btn-fill-icon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.orbit-roll-icon > span,
+.orbit-btn-fill-icon > span {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--dur-header-arrow) var(--ease-header-arrow);
+}
+
+.orbit-roll-icon > span:last-child,
+.orbit-btn-fill-icon > span:last-child {
+  transform: translateX(-140%);
+}
+
+/* Active fill states on pointer-capable hover & keyboard focus */
+@media (hover: hover) and (pointer: fine) {
+  .orbit-dither-control[data-fill="active"]:not(:disabled):not([data-selected="true"]),
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) {
+    color: #ffffff;
+    border-color: var(--orbit-ink);
+  }
+
+  .orbit-dither-control[data-bg-tone="paper-deep"][data-fill="active"]:not(:disabled):not([data-selected="true"]) {
+    color: var(--orbit-ink);
+  }
+
+  .orbit-dither-control[data-fill="active"]:not(:disabled):not([data-selected="true"]) .orbit-dither-bg,
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) .orbit-btn-fill-bg {
+    animation: orbit-dither-in 380ms steps(11, end) forwards;
+  }
+
+  .orbit-dither-control[data-compact="true"][data-fill="active"]:not(:disabled):not([data-selected="true"]) .orbit-dither-bg {
+    animation: orbit-dither-in 240ms steps(11, end) forwards;
+  }
+
+  .orbit-dither-control[data-fill="exiting"]:not(:disabled):not([data-selected="true"]) .orbit-dither-bg,
+  .orbit-btn-fill[data-fill="exiting"]:not(:disabled) .orbit-btn-fill-bg {
+    animation: orbit-dither-out 300ms steps(11, end) forwards;
+  }
+
+  .orbit-dither-control[data-compact="true"][data-fill="exiting"]:not(:disabled):not([data-selected="true"]) .orbit-dither-bg {
+    animation: orbit-dither-out 220ms steps(11, end) forwards;
+  }
+
+  .orbit-dither-control[data-fill="active"]:not(:disabled) .orbit-roll-label > span:first-child,
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) .orbit-btn-fill-label > span:first-child {
+    transform: translateY(-110%);
+  }
+
+  .orbit-dither-control[data-fill="active"]:not(:disabled) .orbit-roll-label > span:last-child,
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) .orbit-btn-fill-label > span:last-child {
+    transform: translateY(0%);
+  }
+
+  .orbit-dither-control[data-fill="active"]:not(:disabled) .orbit-roll-icon > span:first-child,
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) .orbit-btn-fill-icon > span:first-child {
+    transform: translateX(140%);
+  }
+
+  .orbit-dither-control[data-fill="active"]:not(:disabled) .orbit-roll-icon > span:last-child,
+  .orbit-btn-fill[data-fill="active"]:not(:disabled) .orbit-btn-fill-icon > span:last-child {
+    transform: translateX(0%);
+  }
+}
+
+/* Keyboard focus equivalence even on coarse/touch-emulated devices */
+.orbit-dither-control:focus-visible:not(:disabled):not([data-selected="true"]),
+.orbit-btn-fill:focus-visible:not(:disabled) {
+  border-color: var(--orbit-accent);
+}
+
+/* Interactive list/table row subtle orange lead marker + wash */
+.orbit-interactive-row {
+  position: relative;
+  transition: background-color 220ms ease;
+}
+
+.orbit-interactive-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--orbit-accent);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 240ms var(--ease-header-arrow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-interactive-row:hover {
+    background-color: rgba(236, 235, 226, 0.7);
+  }
+  .orbit-interactive-row:hover::before,
+  .orbit-interactive-row:focus-within::before,
+  .orbit-interactive-row[data-selected="true"]::before {
+    transform: scaleY(1);
+  }
+}
+
+/* Drawer entrance */
+@keyframes orbit-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-modal-in {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.orbit-drawer-panel {
+  animation: orbit-drawer-in 260ms var(--ease-header-arrow) forwards;
+}
+
+.orbit-modal-panel {
+  animation: orbit-modal-in 220ms var(--ease-header-arrow) forwards;
+}
+
+/* --------------------------------------------------------------------------
+   Form Focus Behavior (.orbit-field)
+   -------------------------------------------------------------------------- */
+.orbit-field {
+  position: relative;
+  border-bottom: 1px solid var(--orbit-rule);
+  background-color: transparent;
+}
+
+.orbit-field-label {
+  position: absolute;
+  left: 16px;
+  top: 22px;
+  transform-origin: top left;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--orbit-ink-muted);
+  pointer-events: none;
+  transition:
+    transform var(--dur-form-focus) ease,
+    top var(--dur-form-focus) ease,
+    color var(--dur-form-focus) ease;
+}
+
+.orbit-field:hover .orbit-field-label {
+  color: var(--orbit-ink);
+}
+
+.orbit-field[data-active="true"] .orbit-field-label,
+.orbit-field:focus-within .orbit-field-label {
+  top: 8px;
+  transform: scale(0.6666667);
+  color: var(--orbit-accent-text);
+}
+
+.orbit-field-control {
+  width: 100%;
+  background: transparent;
+  padding: 26px 16px 10px 16px;
+  font-size: 15px;
+  color: var(--orbit-ink);
+  border: none;
+  outline: none;
+}
+
+.orbit-field-control:focus-visible {
+  outline: none;
+}
+
+.orbit-field-underline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orbit-field-underline::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: var(--orbit-accent);
+  transform: translateX(-100%);
+  transition: transform var(--dur-form-focus) ease;
+}
+
+.orbit-field:hover .orbit-field-underline::after,
+.orbit-field:focus-within .orbit-field-underline::after,
+.orbit-field[data-active="true"] .orbit-field-underline::after {
+  transform: translateX(0%);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .orbit-dither-bg,
+  .orbit-btn-fill-bg,
+  .orbit-roll-label > span,
+  .orbit-btn-fill-label > span,
+  .orbit-roll-icon > span,
+  .orbit-btn-fill-icon > span,
+  .orbit-interactive-row::before,
+  .orbit-drawer-panel,
+  .orbit-modal-panel,
+  .orbit-field-label,
+  .orbit-field-underline::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html[data-reduced-motion="true"] .orbit-dither-bg,
+html[data-reduced-motion="true"] .orbit-btn-fill-bg,
+html[data-reduced-motion="true"] .orbit-roll-label > span,
+html[data-reduced-motion="true"] .orbit-btn-fill-label > span,
+html[data-reduced-motion="true"] .orbit-roll-icon > span,
+html[data-reduced-motion="true"] .orbit-btn-fill-icon > span,
+html[data-reduced-motion="true"] .orbit-interactive-row::before,
+html[data-reduced-motion="true"] .orbit-drawer-panel,
+html[data-reduced-motion="true"] .orbit-modal-panel,
+html[data-reduced-motion="true"] .orbit-field-label,
+html[data-reduced-motion="true"] .orbit-field-underline::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Print stylesheet for CV Studio browser print / PDF export */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only-sheet {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
