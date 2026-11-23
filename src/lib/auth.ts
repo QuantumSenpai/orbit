@@ -2,7 +2,9 @@ import "server-only";
 
 import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
+import type { JWTPayload } from "jose";
 
 export const SESSION_COOKIE_NAME = "orbit_session";
 export const SESSION_DURATION = 60 * 60 * 24 * 14; // 14 days
