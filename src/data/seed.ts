@@ -10,6 +10,7 @@ export const SEED_WORKSPACE: OrbitWorkspaceState = {
     motionPreference: "system",
     welcomeLastPlayedDate: null,
     demoWeatherEnabled: true,
+    welcomePreference: "once",
   },
   tasks: [
     {

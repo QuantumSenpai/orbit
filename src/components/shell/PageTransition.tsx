@@ -38,9 +38,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Hold dashboard elements cleanly at opacity 0 while Welcome Hero / Demo Login is active
+      // Hold dashboard elements cleanly at opacity 0 while Welcome Hero / access gate is active
       // so exiting the hero never causes a 1 -> 0 -> 1 flash.
-      if (showWelcomeIntro || sessionAuthMode === "demo_login") {
+      if (showWelcomeIntro || sessionAuthMode === "unauthenticated") {
         gsap.set(titleTargets, { yPercent: 100, opacity: 0 });
         gsap.set(sectionTargets, { y: 10, opacity: 0 });
         return;
@@ -97,7 +97,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   // Move focus cleanly to main landmark after client route transitions
   useEffect(() => {
-    if (showWelcomeIntro || sessionAuthMode === "demo_login") return;
+    if (showWelcomeIntro || sessionAuthMode === "unauthenticated") return;
     const main = stageRef.current?.closest("main");
     if (main && lastAnimatedPathRef.current === pathname) {
       main.focus({ preventScroll: true });

@@ -5,39 +5,54 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useOrbit } from "@/context/OrbitContext";
 import { getTimeAwareGreeting } from "@/lib/storage";
-import { OrbitMark, OrbitWordmark } from "@/components/ui/OrbitIcons";
-import { OrbitButton, OrbitField } from "@/components/ui/OrbitPrimitives";
+import { OrbitMark } from "@/components/ui/OrbitIcons";
 import { EarthCenterpiece } from "@/components/earth/EarthCenterpiece";
 
 gsap.registerPlugin(useGSAP);
 
+interface WelcomeMessageVariant {
+  greeting: string;
+  message: string;
+  period: "morning" | "afternoon" | "evening" | "night";
+}
+
 export function WelcomeEntrance() {
   const {
     state,
-    sessionAuthMode,
     showWelcomeIntro,
     effectiveReducedMotion,
     dismissWelcomeIntro,
-    completeDemoLogin,
-    updatePreferences,
   } = useOrbit();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const skipBtnRef = useRef<HTMLButtonElement>(null);
   const isExitingRef = useRef(false);
   const [heroAssetsReady, setHeroAssetsReady] = useState(false);
-  const [heroEarthFrozen, setHeroEarthFrozen] = useState(false);
-  const [loginName, setLoginName] = useState(state.preferences.name);
+  const [welcomeVariant, setWelcomeVariant] = useState<WelcomeMessageVariant | null>(null);
 
+  // Generate welcome variant once per session
   useEffect(() => {
-    setLoginName(state.preferences.name);
-  }, [state.preferences.name]);
+    if (!showWelcomeIntro) {
+      setWelcomeVariant(null);
+      return;
+    }
+    if (showWelcomeIntro && !welcomeVariant) {
+      const greetingData = getTimeAwareGreeting(
+        state.preferences.name,
+        state.preferences.timezone
+      );
+      setWelcomeVariant({
+        greeting: greetingData.greeting,
+        message: greetingData.message,
+        period: greetingData.period,
+      });
+    }
+  }, [showWelcomeIntro, welcomeVariant, state.preferences.name, state.preferences.timezone]);
 
-  // Mark hero assets ready immediately after first paint (zero artificial delay)
+  // Mark hero assets ready immediately after first paint
   useEffect(() => {
     if (!showWelcomeIntro) {
       setHeroAssetsReady(false);
-      setHeroEarthFrozen(false);
       isExitingRef.current = false;
       return;
     }
@@ -49,7 +64,6 @@ export function WelcomeEntrance() {
   const handleSmoothExit = useCallback(() => {
     if (isExitingRef.current) return;
     isExitingRef.current = true;
-    setHeroEarthFrozen(true);
 
     if (effectiveReducedMotion || !rootRef.current) {
       dismissWelcomeIntro();
@@ -74,6 +88,10 @@ export function WelcomeEntrance() {
     if (!showWelcomeIntro) return;
     skipBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        skipBtnRef.current?.focus();
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         handleSmoothExit();
@@ -81,16 +99,19 @@ export function WelcomeEntrance() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showWelcomeIntro, handleSmoothExit]);
+  }, [showWelcomeIntro, welcomeVariant, handleSmoothExit]);
 
-  // Coordinated Post-Login Hero Timeline (~2.45s total)
+  // Coordinated Post-Login Hero Timeline (~2.5s total)
   useGSAP(
     () => {
-      if (!showWelcomeIntro || !heroAssetsReady || !rootRef.current) return;
+      if (!showWelcomeIntro || !heroAssetsReady || !rootRef.current || !welcomeVariant) return;
 
       if (effectiveReducedMotion) {
         const timer = window.setTimeout(() => {
-          dismissWelcomeIntro();
+          if (!isExitingRef.current) {
+            isExitingRef.current = true;
+            dismissWelcomeIntro();
+          }
         }, 650);
         return () => window.clearTimeout(timer);
       }
@@ -104,7 +125,7 @@ export function WelcomeEntrance() {
         },
       });
 
-      // 1. Orbit symbol transitions from grey (#B3B3AF) to orange-red (#FA3600)
+      // 1. Orbit symbol transitions from grey to orange-red
       tl.fromTo(
         ".welcome-hero-mark",
         { color: "#B3B3AF", scale: 0.92, opacity: 0.5 },
@@ -170,16 +191,29 @@ export function WelcomeEntrance() {
         0.52
       );
 
-      // Freeze Earth loop right before exit fade so GPU composites smoothly at 60fps
-      tl.call(
-        () => {
-          setHeroEarthFrozen(true);
+      // 5. Supporting message with slight delay
+      tl.fromTo(
+        ".welcome-supporting-line",
+        { yPercent: 110, opacity: 0 },
+        {
+          yPercent: 0,
+          opacity: 1,
+          duration: 0.4,
+          ease: "power3.out",
+          force3D: true,
         },
-        undefined,
-        2.02
+        0.72
       );
 
-      // 5. Smooth GPU-only fade + slight lift out into the dashboard
+      // Orbital annotation appears
+      tl.fromTo(
+        ".welcome-orbital-note",
+        { scale: 0.9, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.35, ease: "power2.out", force3D: true },
+        0.95
+      );
+
+      // 6. Smooth GPU-only fade + slight lift out into the dashboard
       tl.to(
         rootRef.current,
         {
@@ -189,82 +223,19 @@ export function WelcomeEntrance() {
           ease: "power2.inOut",
           force3D: true,
         },
-        2.06
+        2.15
       );
     },
     {
       scope: rootRef,
-      dependencies: [showWelcomeIntro, heroAssetsReady, effectiveReducedMotion],
+      dependencies: [showWelcomeIntro, heroAssetsReady, effectiveReducedMotion, welcomeVariant],
       revertOnUpdate: true,
     }
   );
 
-  // Demo Login Gate (triggered from Settings or Demo Lock to preview Login -> Welcome -> Dashboard)
-  if (sessionAuthMode === "demo_login") {
-    const handleDemoSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (loginName.trim()) {
-        updatePreferences({ name: loginName.trim() });
-      }
-      completeDemoLogin();
-    };
+  if (!showWelcomeIntro || !welcomeVariant) return null;
 
-    return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Demo Workspace Entry"
-        className="fixed inset-0 z-[85] bg-[#F5F5ED] flex items-center justify-center p-4 sm:p-6"
-      >
-        <div className="orbit-modal-panel w-full max-w-[480px] border border-[#282828] bg-[#F5F5ED]">
-          <div className="p-6 border-b border-[#B3B3AF] flex items-center justify-between">
-            <OrbitWordmark />
-            <span className="px-2 py-0.5 border border-[#FA3600] text-[#C82A00] font-mono text-[10px] uppercase tracking-[0.06em]">
-              DEMO ENTRY
-            </span>
-          </div>
-
-          <div className="p-6 border-b border-[#B3B3AF]">
-            <p className="orbit-mono-label text-[#C82A00] mb-2">
-              LOCAL SESSION // NO BACKEND AUTH
-            </p>
-            <h1 className="orbit-display text-[30px] text-[#FA3600]">
-              Enter Orbit
-            </h1>
-            <p className="text-[14px] text-[#414140] mt-2 leading-relaxed">
-              This demo login triggers the post-login Earth welcome choreography before transitioning into your local workspace.
-            </p>
-          </div>
-
-          <form onSubmit={handleDemoSubmit}>
-            <OrbitField
-              id="demo-login-name"
-              label="Workspace Display Name"
-              value={loginName}
-              onChange={(e) => setLoginName(e.target.value)}
-            />
-            <div className="p-5 flex items-center justify-between gap-3">
-              <span className="font-mono text-[10px] uppercase text-[#5C5C59]">
-                Timezone: {state.preferences.timezone}
-              </span>
-              <OrbitButton
-                type="submit"
-                variant="accent"
-                label="Enter Workspace (Demo)"
-              />
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (!showWelcomeIntro) return null;
-
-  const greeting = getTimeAwareGreeting(
-    state.preferences.name,
-    state.preferences.timezone
-  );
+  const { greeting, message, period } = welcomeVariant;
 
   return (
     <div
@@ -272,7 +243,7 @@ export function WelcomeEntrance() {
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to Orbit workspace"
-      style={{ willChange: "transform, opacity" }}
+      style={{ willChange: "transform, opacity", backgroundColor: period === "night" ? "#ECEBE2" : "#F5F5ED" }}
       className="fixed inset-0 z-[80] bg-[#F5F5ED] flex flex-col justify-between p-4 sm:p-8 overflow-hidden"
     >
       {/* Architectural construction lines */}
@@ -309,14 +280,14 @@ export function WelcomeEntrance() {
 
       {/* Center composition: Earth + Clipped Greeting */}
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 items-center gap-6 max-w-[1120px] w-full mx-auto my-auto px-2">
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-7 space-y-3">
           <div className="orbit-line-mask">
             <span className="welcome-hero-line font-mono text-[11px] uppercase tracking-[0.1em] text-[#C82A00]">
-              ● SESSION AUTHENTICATED (LOCAL DEMO)
+              ● SESSION AUTHENTICATED
             </span>
           </div>
 
-          <h1 className="orbit-display text-[38px] sm:text-[52px] lg:text-[62px] text-[#FA3600]">
+          <h1 className="orbit-display text-[38px] sm:text-[52px] lg:text-[62px] text-[#FA3600] leading-[0.95]">
             <span className="orbit-line-mask">
               <span className="welcome-hero-line">{greeting}</span>
             </span>
@@ -324,15 +295,27 @@ export function WelcomeEntrance() {
 
           <p className="text-[18px] sm:text-[22px] text-[#282828] max-w-[38ch] leading-snug">
             <span className="orbit-line-mask">
-              <span className="welcome-hero-line">
-                Make a little progress. Find a wider orbit.
-              </span>
+              <span className="welcome-supporting-line">{message}</span>
             </span>
           </p>
+
+          {/* Orbital annotation - subtle period indicator */}
+          <div className="orbit-mono-label text-[#5C5C59] welcome-orbital-note" style={{ opacity: effectiveReducedMotion ? 1 : 0, transform: effectiveReducedMotion ? "none" : "scale(0.9)" }}>
+            <span className="inline-flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#FA3600] rounded-full" aria-hidden="true" />
+              <span>{period.toUpperCase()} ORBIT</span>
+              <span className="text-[#B3B3AF]">{"//"}</span>
+              <span className="font-mono text-[10px]">{state.preferences.timezone}</span>
+            </span>
+          </div>
         </div>
 
         <div className="welcome-earth-stage lg:col-span-5 h-[240px] sm:h-[310px] w-full">
-          <EarthCenterpiece reducedMotion={effectiveReducedMotion || heroEarthFrozen} />
+          <EarthCenterpiece
+            reducedMotion={effectiveReducedMotion}
+            // Keep cold WebGL/shader initialization out of the brief intro.
+            forceStatic
+          />
         </div>
       </div>
 

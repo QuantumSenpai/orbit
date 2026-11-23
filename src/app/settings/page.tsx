@@ -11,7 +11,7 @@ import {
   OrbitSectionHeading,
   OrbitStatusBadge,
 } from "@/components/ui/OrbitPrimitives";
-import { MotionPreference } from "@/types/orbit";
+import { MotionPreference, WelcomePreference } from "@/types/orbit";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function SettingsPage() {
     state,
     updatePreferences,
     replayWelcomeIntro,
-    openDemoLogin,
+    logout,
     resetWorkspaceData,
     cycleModelCooldown,
     pushToast,
@@ -177,23 +177,49 @@ export default function SettingsPage() {
               </p>
             </div>
 
+            <div className="p-5 border-b border-[#B3B3AF]">
+              <p className="orbit-mono-label text-[#5C5C59] mb-3">
+                Welcome Sequence
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 border border-[#B3B3AF]">
+                {(
+                  [
+                    { value: "always", label: "Always" },
+                    { value: "once", label: "Once" },
+                    { value: "never", label: "Never" },
+                  ] as { value: WelcomePreference; label: string }[]
+                ).map((opt) => (
+                  <OrbitFilterButton
+                    key={opt.value}
+                    label={opt.label}
+                    active={state.preferences.welcomePreference === opt.value}
+                    onClick={() => {
+                      updatePreferences({ welcomePreference: opt.value });
+                      pushToast(
+                        `Welcome sequence: ${opt.label.toLowerCase()}.`,
+                        { tone: "success" }
+                      );
+                    }}
+                    className="border-b sm:border-b-0 sm:border-r last:border-r-0 border-[#B3B3AF]"
+                  />
+                ))}
+              </div>
+              <p className="font-mono text-[11px] text-[#5C5C59] mt-2.5">
+                Always plays on every sign-in. Once plays after a fresh sign-in only.
+                Never keeps it manual via Replay Welcome.
+              </p>
+            </div>
+
             <div className="p-5 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-[14px] font-medium text-[#282828]">
                   Post-Login Welcome Hero
                 </p>
                 <p className="font-mono text-[11px] text-[#5C5C59]">
-                  Plays after demo login or once per session. Test either flow anytime.
+                  Time-aware Earth briefing. Plays after a successful sign-in.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <OrbitButton
-                  type="button"
-                  label="Demo Login Flow"
-                  size="sm"
-                  variant="subtle"
-                  onClick={openDemoLogin}
-                />
                 <OrbitButton
                   type="button"
                   label="Replay Welcome"
@@ -205,9 +231,24 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="p-4 border-t border-[#B3B3AF] bg-[#ECEBE2]/35 font-mono text-[11px] text-[#5C5C59]">
-            Typography Note: Paired <strong className="text-[#282828]">Archivo</strong> +{" "}
-            <strong className="text-[#282828]">Geist Mono</strong> as an approximate freely licensed substitute for proprietary BT Grotesk.
+          <div className="p-4 border-t border-[#B3B3AF] bg-[#ECEBE2]/35">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[14px] font-medium text-[#282828]">
+                  Sign Out
+                </p>
+                <p className="font-mono text-[11px] text-[#5C5C59]">
+                  Signs this browser out and removes its session cookie.
+                </p>
+              </div>
+              <OrbitButton
+                type="button"
+                label="Log Out"
+                size="sm"
+                variant="subtle"
+                onClick={logout}
+              />
+            </div>
           </div>
         </div>
       </section>

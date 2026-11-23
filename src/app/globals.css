@@ -28,6 +28,7 @@
   /* Exact observed reference easings & durations */
   --ease-btn-text: cubic-bezier(0.625, 0.05, 0, 1);
   --ease-header-arrow: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-reveal: cubic-bezier(0.215, 0.61, 0.355, 1);
   --dur-btn-text: 480ms;
   --dur-btn-compact: 300ms;
   --dur-header-arrow: 500ms;
@@ -436,6 +437,182 @@ body {
 .orbit-field:focus-within .orbit-field-underline::after,
 .orbit-field[data-active="true"] .orbit-field-underline::after {
   transform: translateX(0%);
+}
+
+/* --------------------------------------------------------------------------
+   Personal Access Screen (login) — coordinated entrance sequence
+   Shares the app's clipped-mask, grid-construction and easing vocabulary.
+   All motion is declarative CSS so it never blocks typing or hydration.
+   -------------------------------------------------------------------------- */
+.orbit-access-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fine ruled grid — the base drafting surface */
+.orbit-access-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(179, 179, 175, 0.22) 0px,
+      rgba(179, 179, 175, 0.22) 1px,
+      transparent 1px,
+      transparent 64px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(179, 179, 175, 0.22) 0px,
+      rgba(179, 179, 175, 0.22) 1px,
+      transparent 1px,
+      transparent 64px
+    );
+  -webkit-mask-image: radial-gradient(
+    ellipse 78% 62% at 50% 46%,
+    #000 0%,
+    rgba(0, 0, 0, 0.35) 62%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 78% 62% at 50% 46%,
+    #000 0%,
+    rgba(0, 0, 0, 0.35) 62%,
+    transparent 100%
+  );
+}
+
+/* Construction lines that establish the architectural frame */
+.orbit-access-rule {
+  position: absolute;
+  background-color: var(--orbit-rule);
+  transform-origin: center;
+  opacity: 0;
+}
+
+@keyframes orbit-access-rule-x {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0.75;
+  }
+}
+
+@keyframes orbit-access-rule-y {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 0.75;
+  }
+}
+
+@keyframes orbit-access-mark-in {
+  from {
+    transform: scale(0.82) rotate(-10deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-access-mask-up {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbit-access-rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Step 1 — Orbit symbol */
+.orbit-access-mark {
+  animation: orbit-access-mark-in 520ms var(--ease-reveal) both;
+}
+
+/* Step 2 — construction lines */
+.orbit-access-rule[data-axis="x"] {
+  animation: orbit-access-rule-x 480ms var(--ease-reveal) both;
+}
+
+.orbit-access-rule[data-axis="y"] {
+  animation: orbit-access-rule-y 480ms var(--ease-reveal) both;
+}
+
+/* Step 3 — heading reveals upward through a clipped mask */
+.orbit-access-mask {
+  overflow: hidden;
+  display: block;
+}
+
+.orbit-access-mask > span {
+  display: block;
+  animation: orbit-access-mask-up 520ms var(--ease-reveal) both;
+}
+
+/* Step 4 — field & button enter with a small stagger */
+.orbit-access-rise {
+  animation: orbit-access-rise 460ms var(--ease-header-arrow) both;
+}
+
+/* Error state — restrained border/colour change, no shake */
+.orbit-field[data-invalid="true"] {
+  border-bottom-color: var(--orbit-accent);
+}
+
+.orbit-field[data-invalid="true"] .orbit-field-underline::after {
+  background-color: var(--orbit-accent-dark);
+  transform: translateX(0%);
+}
+
+.orbit-field[data-invalid="true"] .orbit-field-label {
+  color: var(--orbit-accent-text);
+}
+
+/* Reduced motion — reveal instantly, drop all transform choreography */
+@media (prefers-reduced-motion: reduce) {
+  .orbit-access-mark,
+  .orbit-access-rule,
+  .orbit-access-mask > span,
+  .orbit-access-rise {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+html[data-reduced-motion="true"] .orbit-access-mark,
+html[data-reduced-motion="true"] .orbit-access-rule,
+html[data-reduced-motion="true"] .orbit-access-mask > span,
+html[data-reduced-motion="true"] .orbit-access-rise {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* Reduced motion support */

@@ -103,10 +103,13 @@ function EarthSceneContent({
 
   useEffect(() => {
     onReady?.();
+  }, [onReady]);
+
+  useEffect(() => {
     return () => {
       texture.dispose();
     };
-  }, [texture, onReady]);
+  }, [texture]);
 
   useFrame((state, delta) => {
     const clampedDelta = Math.min(delta, 0.05);
@@ -219,6 +222,8 @@ export default function EarthCanvas({
         testCanvas.getContext("webgl") ||
         testCanvas.getContext("experimental-webgl");
       setWebglSupported(Boolean(gl));
+      // The capability probe owns a separate context; release it immediately.
+      if (gl && "getExtension" in gl) gl.getExtension("WEBGL_lose_context")?.loseContext();
     } catch {
       setWebglSupported(false);
     }

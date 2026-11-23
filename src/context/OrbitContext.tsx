@@ -30,7 +30,7 @@ import {
 } from "@/types/orbit";
 
 export type QuickAddKind = "task" | "link" | "idea" | "project";
-export type SessionAuthMode = "demo_login" | "welcome_hero" | "authenticated";
+export type SessionAuthMode = "unauthenticated" | "welcome_hero" | "authenticated";
 
 export interface ToastNotice {
   id: string;
@@ -45,12 +45,13 @@ interface OrbitContextValue {
   hydrated: boolean;
   effectiveReducedMotion: boolean;
   sessionAuthMode: SessionAuthMode;
+  sessionChecked: boolean;
   showWelcomeIntro: boolean;
   welcomeExitedCount: number;
   openDemoLogin: () => void;
-  completeDemoLogin: () => void;
   dismissWelcomeIntro: () => void;
   replayWelcomeIntro: () => void;
+  logout: () => void;
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
   quickAddOpen: boolean;
@@ -149,9 +150,10 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<OrbitWorkspaceState>(SEED_WORKSPACE);
   const [hydrated, setHydrated] = useState(false);
   const [osReducedMotion, setOsReducedMotion] = useState(false);
-  const [sessionAuthMode, setSessionAuthMode] = useState<SessionAuthMode>("authenticated");
+  const [sessionAuthMode, setSessionAuthMode] = useState<SessionAuthMode>("unauthenticated");
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
   const [welcomeExitedCount, setWelcomeExitedCount] = useState(0);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddKind, setQuickAddKind] = useState<QuickAddKind>("task");
@@ -188,8 +190,9 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Hydrate from localStorage + check OS reduced motion + check daily welcome flag
+  // Hydrate from localStorage + check OS reduced motion + check session
   useEffect(() => {
+    let cancelled = false;
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setOsReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setOsReducedMotion(e.matches);
@@ -199,19 +202,64 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
     setState(loaded);
     setHydrated(true);
 
-    // Play post-login welcome hero once per browser session (and never block internal route changes)
-    let alreadyWelcomedInSession = false;
-    try {
-      alreadyWelcomedInSession =
-        window.sessionStorage.getItem("orbit_session_welcomed") === "1";
-    } catch {
-      alreadyWelcomedInSession = false;
-    }
+    // Check for valid session via API
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.authenticated) {
+          setSessionAuthMode("authenticated");
 
-    if (!alreadyWelcomedInSession) {
-      setSessionAuthMode("welcome_hero");
-      setShowWelcomeIntro(true);
-    }
+          // A fresh successful login is flagged by the access screen.
+          let freshLogin = false;
+          try {
+            freshLogin =
+              window.sessionStorage.getItem("orbit_fresh_login") === "1";
+            if (freshLogin) {
+              window.sessionStorage.removeItem("orbit_fresh_login");
+            }
+          } catch {
+            freshLogin = false;
+          }
+
+          let alreadyWelcomedInSession = false;
+          try {
+            alreadyWelcomedInSession =
+              window.sessionStorage.getItem("orbit_session_welcomed") === "1";
+          } catch {
+            alreadyWelcomedInSession = false;
+          }
+
+          const preference = loaded.preferences.welcomePreference;
+
+          // "never" only plays via the explicit Replay Welcome control.
+          const shouldPlay =
+            preference === "never"
+              ? false
+              : freshLogin
+                ? true
+                : preference === "always" && !alreadyWelcomedInSession;
+
+          if (shouldPlay) {
+            setSessionAuthMode("welcome_hero");
+            setShowWelcomeIntro(true);
+          }
+        } else {
+          setSessionAuthMode("unauthenticated");
+          if (window.location.pathname !== "/login") window.location.replace("/login");
+        }
+      } catch {
+        setSessionAuthMode("unauthenticated");
+      } finally {
+        if (!cancelled) setSessionChecked(true);
+      }
+    };
+
+    checkSession();
 
     if (recoveredFromCorrupt) {
       pushToast("Stored workspace data was malformed and reset to demo defaults.", {
@@ -219,7 +267,10 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    return () => mq.removeEventListener("change", onChange);
+    return () => {
+      cancelled = true;
+      mq.removeEventListener("change", onChange);
+    };
   }, [pushToast]);
 
   // Persist to localStorage after hydration
@@ -277,13 +328,32 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setShowWelcomeIntro(false);
-    setSessionAuthMode("demo_login");
+    setSessionAuthMode("unauthenticated");
+    // Redirect to login page
+    window.location.href = "/login";
   }, []);
 
-  const completeDemoLogin = useCallback(() => {
-    setSessionAuthMode("welcome_hero");
-    setShowWelcomeIntro(true);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!response.ok && response.status !== 401) throw new Error("Logout failed");
+    } catch {
+      pushToast("Could not sign out. Check your connection and try again.", { tone: "error" });
+      return;
+    }
+    // Clear local session flag
+    try {
+      window.sessionStorage.removeItem("orbit_session_welcomed");
+      window.sessionStorage.removeItem("orbit_fresh_login");
+    } catch {
+      // ignore
+    }
+    // Redirect to login
+    window.location.href = "/login";
+  }, [pushToast]);
 
   const openQuickAdd = useCallback((kind: QuickAddKind = "task") => {
     setQuickAddKind(kind);
@@ -923,12 +993,13 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       effectiveReducedMotion,
       sessionAuthMode,
+      sessionChecked,
       showWelcomeIntro,
       welcomeExitedCount,
       openDemoLogin,
-      completeDemoLogin,
       dismissWelcomeIntro,
       replayWelcomeIntro,
+      logout,
       commandPaletteOpen,
       setCommandPaletteOpen,
       quickAddOpen,
@@ -976,12 +1047,13 @@ export function OrbitProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       effectiveReducedMotion,
       sessionAuthMode,
+      sessionChecked,
       showWelcomeIntro,
       welcomeExitedCount,
       openDemoLogin,
-      completeDemoLogin,
       dismissWelcomeIntro,
       replayWelcomeIntro,
+      logout,
       commandPaletteOpen,
       quickAddOpen,
       quickAddKind,

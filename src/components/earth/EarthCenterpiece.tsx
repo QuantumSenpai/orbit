@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { EarthStaticFallback } from "./EarthStaticFallback";
 
@@ -19,6 +19,7 @@ export function EarthCenterpiece({
   forceStatic?: boolean;
 }) {
   const [sceneReady, setSceneReady] = useState(false);
+  const handleReady = useCallback(() => setSceneReady(true), []);
 
   return (
     <div className="relative w-full h-full min-h-[260px] flex items-center justify-center overflow-hidden">
@@ -37,7 +38,7 @@ export function EarthCenterpiece({
         >
           <EarthCanvas
             reducedMotion={reducedMotion}
-            onReady={() => setSceneReady(true)}
+            onReady={handleReady}
           />
         </div>
       )}

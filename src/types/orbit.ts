@@ -1,11 +1,14 @@
 export type MotionPreference = "system" | "full" | "reduced";
 
+export type WelcomePreference = "always" | "once" | "never";
+
 export interface UserPreferences {
   name: string;
   timezone: string;
   motionPreference: MotionPreference;
   welcomeLastPlayedDate: string | null;
   demoWeatherEnabled: boolean;
+  welcomePreference: WelcomePreference;
 }
 
 export interface TaskItem {

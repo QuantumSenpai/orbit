@@ -13,9 +13,15 @@ export function isValidWorkspace(data: unknown): data is OrbitWorkspaceState {
   const candidate = data as Partial<OrbitWorkspaceState>;
   return (
     typeof candidate.version === "number" &&
-    candidate.preferences !== undefined &&
+    candidate.preferences != null &&
     typeof candidate.preferences.name === "string" &&
     typeof candidate.preferences.timezone === "string" &&
+    ["system", "full", "reduced"].includes(candidate.preferences.motionPreference) &&
+    (candidate.preferences.welcomeLastPlayedDate === null ||
+      typeof candidate.preferences.welcomeLastPlayedDate === "string") &&
+    typeof candidate.preferences.demoWeatherEnabled === "boolean" &&
+    (candidate.preferences.welcomePreference === undefined ||
+      ["always", "once", "never"].includes(candidate.preferences.welcomePreference)) &&
     Array.isArray(candidate.tasks) &&
     Array.isArray(candidate.projects) &&
     Array.isArray(candidate.inbox) &&
@@ -52,6 +58,7 @@ export function loadWorkspace(): {
         preferences: {
           ...SEED_WORKSPACE.preferences,
           ...parsed.preferences,
+          welcomePreference: parsed.preferences.welcomePreference ?? "once",
         },
       },
       recoveredFromCorrupt: false,
@@ -117,13 +124,101 @@ export function getHourInTimezone(timezone: string, now = new Date()): number {
   }
 }
 
-export function getTimeAwareGreeting(name: string, timezone: string, now = new Date()): string {
+export type TimePeriod = "morning" | "afternoon" | "evening" | "night";
+
+export interface GreetingData {
+  greeting: string;
+  message: string;
+  period: TimePeriod;
+}
+
+const SUPPORTING_MESSAGES: Record<TimePeriod, string[]> = {
+  morning: [
+    "A fresh orbit. One clear priority.",
+    "Morning light. Clean slate.",
+    "Start small. Build momentum.",
+    "Today's arc begins now.",
+  ],
+  afternoon: [
+    "Keep the momentum. Make room for good work.",
+    "Midday stride. Focus on what moves forward.",
+    "Progress compounds. Stay in rhythm.",
+    "The work speaks. Listen.",
+  ],
+  evening: [
+    "Bring today's loose ends into orbit.",
+    "Evening calm. Gather the threads.",
+    "Close loops. Prepare the next turn.",
+    "Day's work settles. Tomorrow awaits.",
+  ],
+  night: [
+    "A quieter world. A little room to think.",
+    "Night hours. Deep focus available.",
+    "Rest the noise. Keep the signal.",
+    "Stillness. Where the next idea forms.",
+  ],
+};
+
+/** Tracks the last supporting message shown per period so consecutive logins differ. */
+const lastMessageIndex: Record<TimePeriod, number> = {
+  morning: -1,
+  afternoon: -1,
+  evening: -1,
+  night: -1,
+};
+
+function getPeriod(hour: number): TimePeriod {
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 21) return "evening";
+  return "night";
+}
+
+function getGreetingText(period: TimePeriod, name: string): string {
+  const safeName = name.trim() || "sir";
+  switch (period) {
+    case "morning":
+      return `Good morning, ${safeName}.`;
+    case "afternoon":
+      return `Good afternoon, ${safeName}.`;
+    case "evening":
+      return `Good evening, ${safeName}.`;
+    case "night":
+      return `Welcome back, ${safeName}.`;
+  }
+}
+
+function pickSupportingMessage(period: TimePeriod): string {
+  const messages = SUPPORTING_MESSAGES[period];
+  let lastIdx = lastMessageIndex[period];
+  try {
+    const saved = window.localStorage.getItem(`orbit_message_${period}`);
+    if (saved !== null) lastIdx = Number(saved);
+  } catch {
+    // Storage restrictions still allow in-memory variation.
+  }
+  let idx = Math.floor(Math.random() * messages.length);
+  // Avoid repeating the same message consecutively
+  if (messages.length > 1 && idx === lastIdx) {
+    idx = (idx + 1) % messages.length;
+  }
+  lastMessageIndex[period] = idx;
+  try {
+    window.localStorage.setItem(`orbit_message_${period}`, String(idx));
+  } catch {
+    // Storage is optional for supporting copy.
+  }
+  return messages[idx];
+}
+
+export function getTimeAwareGreeting(name: string, timezone: string, now = new Date()): GreetingData {
   const hour = getHourInTimezone(timezone, now);
-  const safeName = name.trim() || "there";
-  if (hour >= 5 && hour < 12) return `Good morning, ${safeName}.`;
-  if (hour >= 12 && hour < 17) return `Good afternoon, ${safeName}.`;
-  if (hour >= 17 && hour < 22) return `Good evening, ${safeName}.`;
-  return `Quiet night, ${safeName}.`;
+  const period = getPeriod(hour);
+  return {
+    greeting: getGreetingText(period, name),
+    message: pickSupportingMessage(period),
+    period,
+  };
 }
 
 export function formatTimeInZone(timezone: string, now = new Date()): {

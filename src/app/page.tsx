@@ -73,16 +73,15 @@ export default function TodayPage() {
     `Welcome, ${state.preferences.name.trim() || "there"}.`
   );
 
-  // Defer mounting dashboard 3D WebGL canvas until welcome hero exits & entrance settles (~400ms)
-  // so only ONE WebGL context exists at a time and the hero->dashboard transition runs at steady 60fps.
+  // The longest staggered dashboard reveal takes 560ms; initialize WebGL after it.
   useEffect(() => {
-    if (showWelcomeIntro || sessionAuthMode === "demo_login") {
+    if (showWelcomeIntro || sessionAuthMode === "unauthenticated") {
       setDashboardWebglReady(false);
       return;
     }
     const timer = window.setTimeout(() => {
       setDashboardWebglReady(true);
-    }, 380);
+    }, 700);
     return () => window.clearTimeout(timer);
   }, [showWelcomeIntro, sessionAuthMode]);
 
@@ -92,7 +91,7 @@ export default function TodayPage() {
         state.preferences.name,
         state.preferences.timezone,
         new Date()
-      )
+      ).greeting
     );
   }, [state.preferences.name, state.preferences.timezone]);
 

@@ -168,8 +168,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     effectiveReducedMotion,
     showWelcomeIntro,
     sessionAuthMode,
+    sessionChecked,
     welcomeExitedCount,
     openDemoLogin,
+    logout,
     setCommandPaletteOpen,
     openQuickAdd,
   } = useOrbit();
@@ -209,11 +211,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         gsap.set(".shell-coord-group", { clearProps: "opacity,willChange" });
         return;
       }
-      if (showWelcomeIntro || sessionAuthMode === "demo_login") {
+      // Hold the shell back until the session verdict is known, and keep it
+      // hidden for the whole duration of the welcome briefing.
+      if (!sessionChecked || showWelcomeIntro || sessionAuthMode === "unauthenticated") {
         gsap.set(".shell-coord-group", { opacity: 0 });
         return;
       }
-      if (welcomeExitedCount === 0) return;
+      // No welcome briefing played (e.g. welcome preference = "never").
+      // Reveal immediately so the shell is never left stuck at opacity 0.
+      if (welcomeExitedCount === 0) {
+        gsap.set(".shell-coord-group", { opacity: 1 });
+        return;
+      }
 
       const tl = gsap.timeline({
         onComplete: () => {
@@ -229,7 +238,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       scope: shellRef,
-      dependencies: [welcomeExitedCount, showWelcomeIntro, sessionAuthMode, effectiveReducedMotion],
+      dependencies: [welcomeExitedCount, showWelcomeIntro, sessionAuthMode, sessionChecked, effectiveReducedMotion],
       revertOnUpdate: true,
     }
   );
@@ -302,6 +311,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const activePath = pendingHref ?? pathname;
   const activeTasksCount = state.tasks.filter((t) => !t.completed).length;
 
+  /**
+   * The personal access screen is a standalone surface. Rendering the full
+   * workspace chrome behind it would leak private navigation into the
+   * accessibility tree and the tab order, so the chrome is omitted entirely.
+   */
+  const isAccessRoute =
+    pathname === "/login" || pathname.startsWith("/login/");
+
+  if (isAccessRoute) {
+    return (
+      <div
+        ref={shellRef}
+        className="orbit-paper-surface min-h-screen text-[#282828]"
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={shellRef}
@@ -314,6 +342,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Stationary Desktop Navigation Rail */}
       <aside
+        inert={showWelcomeIntro || !sessionChecked || sessionAuthMode === "unauthenticated"}
         aria-label="Primary Workspace Navigation"
         className="shell-coord-group no-print hidden lg:flex lg:flex-col lg:w-[232px] lg:shrink-0 border-r border-[#B3B3AF] sticky top-0 h-screen justify-between"
       >
@@ -356,7 +385,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        {/* Bottom Settings + Local Status & Demo Login Entry */}
+        {/* Bottom Settings + Local Status & Auth Actions */}
         <div className="border-t border-[#B3B3AF]">
           <div className="border-b border-[#B3B3AF]">
             <SidebarNavLink
@@ -370,25 +399,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="px-4 py-3 bg-[#ECEBE2]/45 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="orbit-mono-label text-[#5C5C59]">Local Session</p>
+              <p className="orbit-mono-label text-[#5C5C59]">
+                {sessionAuthMode === "unauthenticated" ? "Local Session" : "Authenticated"}
+              </p>
               <p className="font-mono text-[11px] text-[#282828] mt-0.5 truncate">
                 {state.preferences.name} · {state.preferences.timezone}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={openDemoLogin}
-              title="Open demo login screen"
-              className="px-2 py-1 border border-[#B3B3AF] font-mono text-[9px] uppercase tracking-[0.06em] text-[#282828] hover:border-[#FA3600] hover:text-[#C82A00] cursor-pointer shrink-0"
-            >
-              Demo Login
-            </button>
+            {sessionAuthMode === "unauthenticated" ? (
+              <button
+                type="button"
+                onClick={openDemoLogin}
+                title="Open login screen"
+                className="px-2 py-1 border border-[#B3B3AF] font-mono text-[9px] uppercase tracking-[0.06em] text-[#282828] hover:border-[#FA3600] hover:text-[#C82A00] cursor-pointer shrink-0"
+              >
+                Login
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={logout}
+                title="Logout"
+                className="px-2 py-1 border border-[#B3B3AF] font-mono text-[9px] uppercase tracking-[0.06em] text-[#282828] hover:border-[#FA3600] hover:text-[#C82A00] cursor-pointer shrink-0"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Main Column */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div inert={showWelcomeIntro || !sessionChecked || sessionAuthMode === "unauthenticated"} className="flex-1 min-w-0 flex flex-col">
         {/* Stationary Top Utility Header */}
         <header className="shell-coord-group no-print sticky top-0 z-30 orbit-paper-surface border-b border-[#B3B3AF]">
           <div className="h-[56px] px-4 lg:px-6 flex items-center justify-between gap-3">
@@ -529,7 +571,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-[12.5px] text-[#282828] leading-snug">
                 <strong className="font-semibold">Orbit is under construction.</strong>{" "}
                 <span className="text-[#414140]">
-                  Explore the frontend preview. Accounts, AI agents and connected services are coming soon.
+                  Your private workspace. AI agents and connected services are coming soon.
                 </span>{" "}
                 <span className="font-mono text-[10.5px] text-[#5C5C59]">
                   (Local edits save in browser storage.)
@@ -565,7 +607,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </div>
             <div className="footer-reveal-item font-mono text-[11px] text-[#5C5C59]">
-              Local browser persistence active. Accounts, AI agents &amp; connected services coming soon.
+              Private, server-verified access. AI agents &amp; connected services coming soon.
             </div>
             <div className="footer-reveal-item flex flex-wrap md:justify-end gap-4 font-mono text-[11px] uppercase tracking-[0.06em]">
               <Link

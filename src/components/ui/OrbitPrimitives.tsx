@@ -36,19 +36,25 @@ interface OrbitButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   size?: "sm" | "md" | "lg";
 }
 
-export function OrbitButton({
-  label,
-  variant = "default",
-  showArrow = true,
-  size = "md",
-  className = "",
-  disabled,
-  onPointerEnter,
-  onPointerLeave,
-  onFocus,
-  onBlur,
-  ...rest
-}: OrbitButtonProps) {
+export const OrbitButton = React.forwardRef<
+  HTMLButtonElement,
+  OrbitButtonProps
+>(function OrbitButton(
+  {
+    label,
+    variant = "default",
+    showArrow = true,
+    size = "md",
+    className = "",
+    disabled,
+    onPointerEnter,
+    onPointerLeave,
+    onFocus,
+    onBlur,
+    ...rest
+  },
+  ref
+) {
   const { bind, setFillState } = useDitherFillState();
 
   useEffect(() => {
@@ -66,6 +72,7 @@ export function OrbitButton({
     return (
       <button
         {...rest}
+        ref={ref}
         disabled={disabled}
         data-fill={bind["data-fill"]}
         data-compact="true"
@@ -110,6 +117,7 @@ export function OrbitButton({
   return (
     <button
       {...rest}
+      ref={ref}
       disabled={disabled}
       data-variant={variant === "accent" ? "accent" : undefined}
       data-fill={bind["data-fill"]}
@@ -150,7 +158,7 @@ export function OrbitButton({
       )}
     </button>
   );
-}
+});
 
 /** Section action link ("OPEN ->", "ALL IDEAS ->", etc.) with dither wash + vertical roll */
 export function OrbitActionLink({
@@ -313,38 +321,47 @@ interface OrbitFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function OrbitField({
-  label,
-  id,
-  value,
-  error,
-  className = "",
-  ...rest
-}: OrbitFieldProps) {
-  const hasValue =
-    value !== undefined && value !== null && String(value).length > 0;
+export const OrbitField = React.forwardRef<HTMLInputElement, OrbitFieldProps>(
+  function OrbitField(
+    { label, id, value, error, className = "", ...rest },
+    ref
+  ) {
+    const hasValue =
+      value !== undefined && value !== null && String(value).length > 0;
+    const errorId = error ? `${id}-error` : undefined;
 
-  return (
-    <div
-      className={`orbit-field ${className}`}
-      data-active={hasValue ? "true" : "false"}
-    >
-      <label htmlFor={id} className="orbit-field-label">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        className="orbit-field-control"
-        {...rest}
-      />
-      <div className="orbit-field-underline" aria-hidden="true" />
-      {error && (
-        <p className="px-4 pb-2 font-mono text-[11px] text-[#C82A00]">{error}</p>
-      )}
-    </div>
-  );
-}
+    return (
+      <div
+        className={`orbit-field ${className}`}
+        data-active={hasValue ? "true" : "false"}
+        data-invalid={error ? "true" : "false"}
+      >
+        <label htmlFor={id} className="orbit-field-label">
+          {label}
+        </label>
+        <input
+          id={id}
+          ref={ref}
+          value={value}
+          className="orbit-field-control"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+          {...rest}
+        />
+        <div className="orbit-field-underline" aria-hidden="true" />
+        {error && (
+          <p
+            id={errorId}
+            role="alert"
+            className="px-4 pb-2 font-mono text-[11px] text-[#C82A00]"
+          >
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
 
 interface OrbitTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
